@@ -1,30 +1,58 @@
 const { getConnection } = require('../config/database');
+const jwt = require('jsonwebtoken');
+
+// 从请求头获取用户ID
+const getUserIdFromToken = (req) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (token) {
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret_key');
+            return decoded.uid;
+        } catch (e) {
+            return null;
+        }
+    }
+    return null;
+};
 
 // 借书
 const borrowBook = async (req, res) => {
     try {
-        const { borrower_id, book_id } = req.body;
+        // 支持多种参数格式
+        const { borrower_id, book_id, bookId } = req.body;
+        const actualBookId = book_id || bookId;
+        const actualBorrowerId = borrower_id || getUserIdFromToken(req);
+        
+        if (!actualBorrowerId) {
+            return res.status(401).json({ success: false, error: '请先登录' });
+        }
+        
+        if (!actualBookId) {
+            return res.status(400).json({ success: false, error: '请提供图书ID' });
+        }
+        
         const connection = await getConnection();
         
         // Get current date
         const borrow_date = new Date().toISOString().split('T')[0];
         
-        console.log('Borrowing book with data:', { borrower_id, book_id, borrow_date });
+        console.log('Borrowing book with data:', { borrower_id: actualBorrowerId, book_id: actualBookId, borrow_date });
         
         /// 调用存储过程借书
-        await connection.execute('CALL borrowBook(?, ?, ?, @result_code, @result_message, @record_id)', [borrower_id, book_id, borrow_date]);
+        await connection.execute('CALL borrowBook(?, ?, ?, @result_code, @result_message, @record_id)', [actualBorrowerId, actualBookId, borrow_date]);
         const [result] = await connection.execute('SELECT @result_code as result_code, @result_message as result_message, @record_id as record_id');
         
         console.log('Borrow result:', result[0]);
         
         if (result[0].result_code !== 0) {
-            return res.status(400).json({ error: result[0].result_message });
+            return res.status(400).json({ success: false, error: result[0].result_message });
         }
         
-        res.status(201).json({ message: result[0].result_message, recordId: result[0].record_id });
+        res.status(201).json({ success: true, message: result[0].result_message, recordId: result[0].record_id });
     } catch (error) {
         console.error('Failed to borrow book:', error);
-        res.status(500).json({ error: 'Failed to borrow book' });
+        res.status(500).json({ success: false, error: 'Failed to borrow book' });
     }
 };
 
