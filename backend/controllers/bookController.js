@@ -137,7 +137,7 @@ const searchBooks = async (req, res) => {
         const [result] = await connection.execute('SELECT @result_code as result_code, @result_message as result_message');
         
         if (result[0].result_code !== 0) {
-            return res.status(500).json({ error: result[0].result_message });
+            return res.status(500).json({ success: false, error: result[0].result_message });
         }
         
         // Get actual query results
@@ -150,10 +150,10 @@ const searchBooks = async (req, res) => {
             WHERE b.title LIKE ? OR b.isbn LIKE ? OR a.author_name LIKE ?
         `, [`%${query}%`, `%${query}%`, `%${query}%`]);
         
-        res.json(rows);
+        res.json({ success: true, data: rows });
     } catch (error) {
         console.error('Failed to search books:', error);
-        res.status(500).json({ error: 'Failed to search books' });
+        res.status(500).json({ success: false, error: 'Failed to search books' });
     }
 };
 
