@@ -23,6 +23,8 @@ const adminRoutes = require('./routes/adminRoutes');
 // 使用路由
 app.use('/api/books', bookRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/auth', userRoutes);  // 添加 /api/auth 路由映射
+app.use('/api/user', userRoutes);  // 添加 /api/user 路由映射
 app.use('/api/borrow', borrowRoutes);
 app.use('/api/admin', adminRoutes);
 
