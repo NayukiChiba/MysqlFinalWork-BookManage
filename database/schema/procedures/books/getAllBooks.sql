@@ -1,25 +1,30 @@
-USE bookmanage;
-DROP PROCEDURE IF EXISTS getAllBooks;
-DELIMITER //
+SET NAMES utf8mb4;
 
-CREATE PROCEDURE IF NOT EXISTS getAllBooks(
-    OUT p_result_code INT,
-    OUT p_result_message VARCHAR(255)
-)
+USE bookmanage;
+
+DROP PROCEDURE IF EXISTS getAllBooks;
+
+DELIMITER / /
+
+CREATE PROCEDURE IF NOT EXISTS getAllBooks()
 BEGIN
-    -- 声明异常处理
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        SET p_result_code = -1;
-        SET p_result_message = 'System error: Query failed';
-    END;
-    
-    -- 初始化返回值
-    SET p_result_code = 0;
-    SET p_result_message = '';
-    
-    -- 查询所有图书
-    SELECT * FROM books;
+    -- 查询所有图书，包含作者和出版社信息
+    SELECT 
+        b.book_id, 
+        b.title, 
+        b.isbn, 
+        b.publication_year,
+        b.total_stock,
+        b.current_stock as available_stock,
+        b.location,
+        p.publisher_name,
+        GROUP_CONCAT(DISTINCT a.author_name SEPARATOR ', ') as author_names
+    FROM books b
+    LEFT JOIN publishers p ON b.publisher_id = p.publisher_id
+    LEFT JOIN book_authors ba ON b.book_id = ba.book_id
+    LEFT JOIN authors a ON ba.author_id = a.author_id
+    GROUP BY b.book_id
+    ORDER BY b.book_id;
 END//
 
-DELIMITER ;
+DELIMITER;
