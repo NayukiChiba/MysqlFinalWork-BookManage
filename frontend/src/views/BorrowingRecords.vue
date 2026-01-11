@@ -21,28 +21,14 @@
     <div class="records-content">
       <!-- 当前借阅记录 -->
       <div v-if="activeTab === 'current'" class="current-records">
-        <div v-if="currentRecords.length > 0" class="records-list">
-          <div class="record-item" v-for="record in currentRecords" :key="record.record_id">
-            <div class="record-info">
-              <h4>{{ record.book_title }}</h4>
-              <p class="record-details">
-                <span>借阅日期: {{ formatDate(record.borrow_date) }}</span>
-                <span>应还日期: {{ formatDate(record.due_date) }}</span>
-                <span :class="getOverdueClass(record.overdue_days)">
-                  {{ getOverdueText(record.overdue_days) }}
-                </span>
-              </p>
-            </div>
-            <div class="record-actions">
-              <button 
-                @click="returnBook(record.record_id)" 
-                :disabled="returning[record.record_id]"
-                class="return-button"
-              >
-                {{ returning[record.record_id] ? '还书中...' : '归还' }}
-              </button>
-            </div>
-          </div>
+        <div v-if="loading" class="loading-message">加载中...</div>
+        <div v-else-if="currentRecords.length > 0" class="records-grid">
+          <BorrowingCard 
+            v-for="record in currentRecords" 
+            :key="record.record_id"
+            :record="record"
+            @returned="handleReturned"
+          />
         </div>
         <div v-else class="no-records">
           <p>暂无当前借阅记录</p>
@@ -51,7 +37,8 @@
       
       <!-- 历史借阅记录 -->
       <div v-if="activeTab === 'history'" class="history-records">
-        <div v-if="historyRecords.length > 0" class="records-list">
+        <div v-if="loading" class="loading-message">加载中...</div>
+        <div v-else-if="historyRecords.length > 0" class="records-list">
           <div class="record-item" v-for="record in historyRecords" :key="record.record_id">
             <div class="record-info">
               <h4>{{ record.book_title }}</h4>
@@ -88,17 +75,20 @@
 </template>
 
 <script>
-import { userAPI, bookAPI } from '../utils/api';
+import { userAPI } from '../utils/api';
+import BorrowingCard from '../components/BorrowingCard.vue';
 
 export default {
   name: 'BorrowingRecords',
+  components: {
+    BorrowingCard
+  },
   data() {
     return {
       activeTab: 'current',
       currentRecords: [],
       historyRecords: [],
       loading: false,
-      returning: {},
       error: '',
       success: ''
     };
@@ -138,54 +128,21 @@ export default {
     
     switchTab(tab) {
       this.activeTab = tab;
+      this.error = '';
+      this.success = '';
       this.loadRecords();
     },
     
-    async returnBook(recordId) {
-      // 设置还书状态
-      this.$set(this.returning, recordId, true);
-      this.error = '';
-      this.success = '';
-      
-      try {
-        const response = await bookAPI.returnBook(recordId);
-        
-        if (response.success) {
-          this.success = '还书成功！';
-          // 重新加载当前借阅记录
-          await this.loadRecords();
-        } else {
-          this.error = response.message || '还书失败';
-        }
-      } catch (err) {
-        this.error = err.response?.data?.message || '还书过程中发生错误';
-      } finally {
-        // 重置还书状态
-        this.$set(this.returning, recordId, false);
-      }
+    handleReturned() {
+      this.success = '还书成功！';
+      // 重新加载当前借阅记录
+      this.loadRecords();
     },
     
     formatDate(dateString) {
       if (!dateString) return '';
       const date = new Date(dateString);
       return date.toLocaleDateString('zh-CN');
-    },
-    
-    getOverdueClass(overdueDays) {
-      if (overdueDays > 0) {
-        return 'overdue';
-      }
-      return '';
-    },
-    
-    getOverdueText(overdueDays) {
-      if (overdueDays > 0) {
-        return `已逾期${overdueDays}天`;
-      } else if (overdueDays === 0) {
-        return '今天到期';
-      } else {
-        return `剩余${Math.abs(overdueDays)}天`;
-      }
     },
     
     getStatusClass(status) {
@@ -263,6 +220,18 @@ export default {
   background-color: #e0e0e0;
 }
 
+.loading-message {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+}
+
+.records-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
 .records-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
@@ -274,13 +243,6 @@ export default {
   border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   padding: 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.record-info {
-  flex: 1;
 }
 
 .record-info h4 {
@@ -298,35 +260,6 @@ export default {
 
 .record-details span {
   display: block;
-}
-
-.record-details .overdue {
-  color: #f56c6c;
-  font-weight: 500;
-}
-
-.record-actions {
-  margin-left: 20px;
-}
-
-.return-button {
-  padding: 8px 16px;
-  background-color: #409eff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.return-button:hover:not(:disabled) {
-  background-color: #66b1ff;
-}
-
-.return-button:disabled {
-  background-color: #a0cfff;
-  cursor: not-allowed;
 }
 
 .no-records {
@@ -368,19 +301,9 @@ export default {
 }
 
 @media (max-width: 768px) {
+  .records-grid,
   .records-list {
     grid-template-columns: 1fr;
-  }
-  
-  .record-item {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .record-actions {
-    margin-left: 0;
-    margin-top: 15px;
-    align-self: flex-end;
   }
 }
 </style>

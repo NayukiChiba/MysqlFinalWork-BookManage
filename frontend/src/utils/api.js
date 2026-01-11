@@ -95,7 +95,7 @@ export const bookAPI = {
   borrowBook: (bookId) => api.post("/books/borrow", { bookId }),
 
   // 还书
-  returnBook: (recordId) => api.post("/books/return", { recordId }),
+  returnBook: (recordId) => api.post("/books/return", { record_id: recordId }),
 
   // 按书名搜索图书
   searchByName: (bookName) => api.get(`/books/search/name/${bookName}`),

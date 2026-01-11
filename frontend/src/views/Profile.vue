@@ -22,35 +22,17 @@
       <!-- 当前借阅 -->
       <div class="section">
         <h3>当前借阅</h3>
-        <div v-if="currentBorrowings.length === 0" class="empty-message">
+        <div v-if="loading" class="loading-message">加载中...</div>
+        <div v-else-if="currentBorrowings.length === 0" class="empty-message">
           暂无当前借阅记录
         </div>
         <div v-else class="records-grid">
-          <div v-for="record in currentBorrowings" :key="record.record_id" class="record-card">
-            <div class="record-header">
-              <h4>{{ record.book_title || record.book_id }}</h4>
-              <span :class="['status', record.return_status]">{{ getStatusText(record.return_status) }}</span>
-            </div>
-            <div class="record-details">
-              <div class="detail-item">
-                <span class="detail-label">借阅日期：</span>
-                <span class="detail-value">{{ formatDate(record.borrow_date) }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">应还日期：</span>
-                <span class="detail-value">{{ formatDate(record.due_date) }}</span>
-              </div>
-              <div v-if="record.overdue_days > 0" class="detail-item overdue">
-                <span class="detail-label">逾期天数：</span>
-                <span class="detail-value">{{ record.overdue_days }}天</span>
-              </div>
-            </div>
-            <div v-if="record.return_status === 'borrowed'" class="record-actions">
-              <button @click="handleReturn(record.record_id)" class="return-button">
-                还书
-              </button>
-            </div>
-          </div>
+          <BorrowingCard 
+            v-for="record in currentBorrowings" 
+            :key="record.record_id"
+            :record="record"
+            @returned="handleReturned"
+          />
         </div>
       </div>
 
@@ -145,21 +127,31 @@
         </div>
       </div>
     </div>
+    
+    <!-- 消息提示 -->
+    <div v-if="successMessage" class="success-message">
+      {{ successMessage }}
+    </div>
   </div>
 </template>
 
 <script>
-import { userAPI, bookAPI } from '../utils/api';
+import { userAPI } from '../utils/api';
+import BorrowingCard from '../components/BorrowingCard.vue';
 
 export default {
   name: 'Profile',
+  components: {
+    BorrowingCard
+  },
   data() {
     return {
       userInfo: {},
       currentBorrowings: [],
       allBorrowings: [],
       fineRecords: [],
-      loading: false
+      loading: false,
+      successMessage: ''
     };
   },
   mounted() {
@@ -208,20 +200,15 @@ export default {
       }
     },
 
-    async handleReturn(recordId) {
-      try {
-        const response = await bookAPI.returnBook(recordId);
-        if (response.success) {
-          // 重新加载数据
-          this.loadBorrowingRecords();
-          this.loadFineRecords();
-          alert('还书成功！');
-        } else {
-          alert(response.message || '还书失败');
-        }
-      } catch (err) {
-        alert(err.response?.data?.message || '还书过程中发生错误');
-      }
+    handleReturned() {
+      this.successMessage = '还书成功！';
+      // 重新加载数据
+      this.loadBorrowingRecords();
+      this.loadFineRecords();
+      // 3秒后清除消息
+      setTimeout(() => {
+        this.successMessage = '';
+      }, 3000);
     },
 
     async handlePayFine(fineId) {
@@ -345,6 +332,12 @@ export default {
   border-bottom: 2px solid #409eff;
 }
 
+.loading-message {
+  text-align: center;
+  color: #999;
+  padding: 40px;
+}
+
 .empty-message {
   text-align: center;
   color: #999;
@@ -356,95 +349,6 @@ export default {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 20px;
-}
-
-.record-card {
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  padding: 20px;
-  transition: box-shadow 0.3s;
-}
-
-.record-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.record-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.record-header h4 {
-  margin: 0;
-  color: #333;
-  font-size: 16px;
-}
-
-.status {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.status.borrowed {
-  background-color: #e6f7ff;
-  color: #409eff;
-}
-
-.status.returned {
-  background-color: #f6ffed;
-  color: #52c41a;
-}
-
-.status.overdue {
-  background-color: #fff2e8;
-  color: #fa8c16;
-}
-
-.record-details {
-  margin-bottom: 15px;
-}
-
-.detail-item {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  font-size: 14px;
-}
-
-.detail-item.overdue {
-  color: #f56c6c;
-  font-weight: 500;
-}
-
-.detail-label {
-  color: #666;
-}
-
-.detail-value {
-  color: #333;
-  font-weight: 500;
-}
-
-.record-actions {
-  text-align: center;
-}
-
-.return-button {
-  padding: 8px 16px;
-  background-color: #409eff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.return-button:hover {
-  background-color: #66b1ff;
 }
 
 .records-table, .fines-table {
@@ -474,6 +378,21 @@ th {
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
+}
+
+.status-badge.borrowed {
+  background-color: #e6f7ff;
+  color: #409eff;
+}
+
+.status-badge.returned {
+  background-color: #f6ffed;
+  color: #52c41a;
+}
+
+.status-badge.overdue {
+  background-color: #fff2e8;
+  color: #fa8c16;
 }
 
 .status-badge.paid {
@@ -537,6 +456,19 @@ th {
 .amount {
   color: #f56c6c;
   font-weight: 500;
+}
+
+.success-message {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  padding: 15px 20px;
+  background-color: #f0f9eb;
+  color: #67c23a;
+  border: 1px solid #c2e7b0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
 }
 
 @media (max-width: 768px) {

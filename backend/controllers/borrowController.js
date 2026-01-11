@@ -60,17 +60,22 @@ const borrowBook = async (req, res) => {
 const returnBook = async (req, res) => {
     try {
         const { record_id } = req.body;
+        console.log('Return book request:', { record_id });
+        
         const connection = await getConnection();
 
         // 调用存储过程还书
         await connection.execute('CALL returnBook(?, @result_code, @result_message, @overdue_days, @fine_amount, @fine_record_id)', [record_id]);
         const [result] = await connection.execute('SELECT @result_code as result_code, @result_message as result_message, @overdue_days as overdue_days, @fine_amount as fine_amount, @fine_record_id as fine_record_id');
         
+        console.log('Return book result:', result[0]);
+        
         if (result[0].result_code !== 0) {
-            return res.status(400).json({ error: result[0].result_message });
+            return res.status(400).json({ success: false, error: result[0].result_message });
         }
         
         res.json({
+            success: true,
             message: result[0].result_message,
             overdueDays: result[0].overdue_days,
             fineAmount: result[0].fine_amount,
@@ -78,7 +83,7 @@ const returnBook = async (req, res) => {
         });
     } catch (error) {
         console.error('Failed to return book:', error);
-        res.status(500).json({ error: 'Failed to return book' });
+        res.status(500).json({ success: false, error: 'Failed to return book' });
     }
 };
 
