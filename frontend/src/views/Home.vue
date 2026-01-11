@@ -74,7 +74,7 @@
       </router-link>
     </div>
     
-    <!-- 借书确认对话框 -->
+    <!-- 通过ID查询的借书确认对话框 -->
     <div v-if="showConfirmDialog" class="dialog-overlay" @click.self="closeDialog">
       <div class="confirm-dialog">
         <div class="dialog-header">
@@ -123,26 +123,12 @@
       <div v-else-if="books.length === 0" class="empty-message">暂无图书</div>
       
       <div v-else class="books-grid">
-        <div v-for="book in books" :key="book.book_id" class="book-card">
-          <div class="book-info">
-            <h4 class="book-title">{{ book.title }}</h4>
-            <p class="book-author">作者：{{ book.author_names || '未知' }}</p>
-            <p class="book-publisher">出版社：{{ book.publisher_name || '未知' }}</p>
-          </div>
-          <div class="book-status">
-            <span class="book-id">ID: {{ book.book_id }}</span>
-            <span :class="['stock', book.available_stock > 0 ? 'available' : 'unavailable']">
-              {{ book.available_stock > 0 ? `可借: ${book.available_stock}` : '已借完' }}
-            </span>
-          </div>
-          <button 
-            class="borrow-btn" 
-            @click="borrowFromCard(book)"
-            :disabled="book.available_stock <= 0"
-          >
-            {{ book.available_stock > 0 ? '借阅' : '已借完' }}
-          </button>
-        </div>
+        <BookCard 
+          v-for="book in books" 
+          :key="book.book_id" 
+          :book="book"
+          @borrowed="handleBorrowed"
+        />
       </div>
     </div>
   </div>
@@ -150,9 +136,13 @@
 
 <script>
 import { bookAPI } from '../utils/api';
+import BookCard from '../components/BookCard.vue';
 
 export default {
   name: 'Home',
+  components: {
+    BookCard
+  },
   data() {
     return {
       borrowForm: { bookId: '' },
@@ -164,6 +154,7 @@ export default {
       userInfo: null,
       books: [],
       booksLoading: false,
+      // 用于ID查询的对话框
       showConfirmDialog: false,
       selectedBook: null,
       dialogMessage: '',
@@ -199,6 +190,7 @@ export default {
       }
     },
     
+    // 通过ID查询图书
     lookupBook() {
       if (!this.borrowForm.bookId.trim()) {
         this.borrowMessage = '请输入图书ID';
@@ -211,20 +203,12 @@ export default {
         this.selectedBook = book;
         this.showConfirmDialog = true;
         this.borrowMessage = '';
+        this.dialogMessage = '';
+        this.dialogSuccess = false;
       } else {
         this.borrowMessage = '未找到该图书';
         this.borrowSuccess = false;
       }
-    },
-    
-    borrowFromCard(book) {
-      if (!this.isLoggedIn) {
-        this.borrowMessage = '请先登录';
-        this.borrowSuccess = false;
-        return;
-      }
-      this.selectedBook = book;
-      this.showConfirmDialog = true;
     },
     
     closeDialog() {
@@ -260,6 +244,11 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+    
+    // 处理BookCard借阅成功事件
+    handleBorrowed() {
+      this.loadBooks();
     }
   }
 };
@@ -571,81 +560,6 @@ export default {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 15px;
-}
-
-.book-card {
-  background: #f9f9f9;
-  border-radius: 8px;
-  padding: 15px;
-  transition: all 0.2s;
-  border: 1px solid #eee;
-}
-
-.book-card:hover {
-  background: #f0f7ff;
-  border-color: #409eff;
-}
-
-.book-info {
-  margin-bottom: 10px;
-}
-
-.book-title {
-  color: #333;
-  font-size: 14px;
-  margin: 0 0 6px 0;
-  font-weight: 600;
-}
-
-.book-author, .book-publisher {
-  color: #666;
-  font-size: 12px;
-  margin: 2px 0;
-}
-
-.book-status {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  border-top: 1px solid #eee;
-  margin-bottom: 10px;
-}
-
-.book-id {
-  color: #999;
-  font-size: 11px;
-  font-family: monospace;
-}
-
-.stock {
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.stock.available { background: #f0f9eb; color: #67c23a; }
-.stock.unavailable { background: #fef0f0; color: #f56c6c; }
-
-.borrow-btn {
-  width: 100%;
-  padding: 8px;
-  background: #409eff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: background 0.2s;
-}
-
-.borrow-btn:hover:not(:disabled) {
-  background: #66b1ff;
-}
-
-.borrow-btn:disabled {
-  background: #c0c4cc;
-  cursor: not-allowed;
 }
 
 @media (max-width: 600px) {

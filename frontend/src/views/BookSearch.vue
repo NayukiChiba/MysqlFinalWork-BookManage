@@ -33,31 +33,14 @@
     </div>
     
     <div class="search-results" v-if="searchResults.length > 0">
-      <h3>搜索结果</h3>
-      <div class="results-list">
-        <div class="book-item" v-for="book in searchResults" :key="book.book_id">
-          <div class="book-info">
-            <h4>{{ book.title }}</h4>
-            <p class="book-details">
-              <span v-if="book.authors">作者: {{ book.authors }}</span>
-              <span v-if="book.publisher_name">出版社: {{ book.publisher_name }}</span>
-              <span v-if="book.isbn">ISBN: {{ book.isbn }}</span>
-              <span v-if="book.publication_year">出版年份: {{ book.publication_year }}</span>
-            </p>
-            <p class="book-stock">
-              库存: {{ book.current_stock }}/{{ book.total_stock }}
-            </p>
-          </div>
-          <div class="book-actions">
-            <button 
-              @click="borrowBook(book.book_id)" 
-              :disabled="book.current_stock <= 0 || borrowing[book.book_id]"
-              class="borrow-button"
-            >
-              {{ borrowing[book.book_id] ? '借阅中...' : (book.current_stock > 0 ? '借阅' : '无库存') }}
-            </button>
-          </div>
-        </div>
+      <h3>搜索结果 <span class="result-count">共 {{ searchResults.length }} 本</span></h3>
+      <div class="results-grid">
+        <BookCard 
+          v-for="book in searchResults" 
+          :key="book.book_id"
+          :book="book"
+          @borrowed="handleBorrowed"
+        />
       </div>
     </div>
     
@@ -68,18 +51,18 @@
     <div v-if="error" class="error-message">
       {{ error }}
     </div>
-    
-    <div v-if="success" class="success-message">
-      {{ success }}
-    </div>
   </div>
 </template>
 
 <script>
 import { bookAPI } from '../utils/api';
+import BookCard from '../components/BookCard.vue';
 
 export default {
   name: 'BookSearch',
+  components: {
+    BookCard
+  },
   data() {
     return {
       searchType: 'name',
@@ -87,16 +70,13 @@ export default {
       searching: false,
       searched: false,
       searchResults: [],
-      borrowing: {},
-      error: '',
-      success: ''
+      error: ''
     };
   },
   methods: {
     async handleSearch() {
       // 重置状态
       this.error = '';
-      this.success = '';
       this.searched = false;
       
       if (!this.searchKeyword.trim()) {
@@ -143,30 +123,15 @@ export default {
       }
     },
     
-    async borrowBook(bookId) {
-      // 设置借阅状态
-      this.$set(this.borrowing, bookId, true);
-      this.error = '';
-      this.success = '';
-      
-      try {
-        const response = await bookAPI.borrowBook(bookId);
-        
-        if (response.success) {
-          this.success = '借阅成功！';
-          // 更新库存信息
-          const book = this.searchResults.find(b => b.book_id === bookId);
-          if (book) {
-            book.current_stock -= 1;
-          }
-        } else {
-          this.error = response.message || '借阅失败';
+    handleBorrowed(book) {
+      // 借阅成功后，更新库存信息
+      const targetBook = this.searchResults.find(b => b.book_id === book.book_id);
+      if (targetBook) {
+        if (typeof targetBook.available_stock === 'number') {
+          targetBook.available_stock -= 1;
+        } else if (typeof targetBook.current_stock === 'number') {
+          targetBook.current_stock -= 1;
         }
-      } catch (err) {
-        this.error = err.response?.data?.message || '借阅过程中发生错误';
-      } finally {
-        // 重置借阅状态
-        this.$set(this.borrowing, bookId, false);
       }
     }
   }
@@ -262,74 +227,22 @@ export default {
 .search-results h3 {
   margin-top: 30px;
   color: #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.results-list {
+.result-count {
+  font-size: 14px;
+  color: #999;
+  font-weight: normal;
+}
+
+.results-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 15px;
   margin-top: 20px;
-}
-
-.book-item {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-}
-
-.book-info {
-  flex: 1;
-}
-
-.book-info h4 {
-  margin: 0 0 10px 0;
-  color: #333;
-}
-
-.book-details {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  color: #666;
-  font-size: 14px;
-}
-
-.book-details span {
-  display: block;
-}
-
-.book-stock {
-  margin: 10px 0;
-  font-weight: 500;
-  color: #409eff;
-}
-
-.book-actions {
-  margin-top: 15px;
-}
-
-.borrow-button {
-  width: 100%;
-  padding: 10px;
-  background-color: #409eff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.borrow-button:hover:not(:disabled) {
-  background-color: #66b1ff;
-}
-
-.borrow-button:disabled {
-  background-color: #a0cfff;
-  cursor: not-allowed;
 }
 
 .no-results {
@@ -348,16 +261,6 @@ export default {
   text-align: center;
 }
 
-.success-message {
-  margin-top: 15px;
-  padding: 10px;
-  background-color: #f0f9ff;
-  color: #409eff;
-  border: 1px solid #d0e9ff;
-  border-radius: 4px;
-  text-align: center;
-}
-
 @media (max-width: 768px) {
   .search-options {
     flex-direction: column;
@@ -368,7 +271,7 @@ export default {
     flex-direction: column;
   }
   
-  .results-list {
+  .results-grid {
     grid-template-columns: 1fr;
   }
 }
