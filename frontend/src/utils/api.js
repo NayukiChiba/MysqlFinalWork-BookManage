@@ -85,6 +85,9 @@ export const userAPI = {
 
 // 图书相关API
 export const bookAPI = {
+  // 获取所有图书
+  getAllBooks: () => api.get("/books"),
+
   // 添加图书
   addBook: (bookData) => api.post("/books", bookData),
 
