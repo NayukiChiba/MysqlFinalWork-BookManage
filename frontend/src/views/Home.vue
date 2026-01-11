@@ -94,9 +94,14 @@
             </p>
           </div>
         </div>
+        <!-- 对话框内的消息提示 -->
+        <div v-if="dialogMessage" :class="['dialog-message', dialogSuccess ? 'success' : 'error']">
+          {{ dialogMessage }}
+        </div>
         <div class="dialog-footer">
-          <button class="btn-cancel" @click="closeDialog">取消</button>
+          <button class="btn-cancel" @click="closeDialog">{{ dialogSuccess ? '关闭' : '取消' }}</button>
           <button 
+            v-if="!dialogSuccess"
             class="btn-confirm" 
             @click="confirmBorrow" 
             :disabled="loading || !selectedBook || selectedBook.available_stock <= 0"
@@ -160,7 +165,9 @@ export default {
       books: [],
       booksLoading: false,
       showConfirmDialog: false,
-      selectedBook: null
+      selectedBook: null,
+      dialogMessage: '',
+      dialogSuccess: false
     };
   },
   mounted() {
@@ -223,34 +230,35 @@ export default {
     closeDialog() {
       this.showConfirmDialog = false;
       this.selectedBook = null;
+      this.dialogMessage = '';
+      this.dialogSuccess = false;
     },
     
     async confirmBorrow() {
       if (!this.isLoggedIn) {
-        this.borrowMessage = '请先登录';
-        this.borrowSuccess = false;
-        this.closeDialog();
+        this.dialogMessage = '请先登录';
+        this.dialogSuccess = false;
         return;
       }
       
       this.loading = true;
+      this.dialogMessage = '';
       try {
         const response = await bookAPI.borrowBook(this.selectedBook.book_id);
         if (response.success) {
-          this.borrowMessage = '借书成功！';
-          this.borrowSuccess = true;
+          this.dialogMessage = '借书成功！';
+          this.dialogSuccess = true;
           this.borrowForm.bookId = '';
           this.loadBooks();
         } else {
-          this.borrowMessage = response.message || '借书失败';
-          this.borrowSuccess = false;
+          this.dialogMessage = response.error || response.message || '借书失败';
+          this.dialogSuccess = false;
         }
       } catch (err) {
-        this.borrowMessage = err.response?.data?.message || '借书失败';
-        this.borrowSuccess = false;
+        this.dialogMessage = err.response?.data?.error || err.response?.data?.message || '借书失败';
+        this.dialogSuccess = false;
       } finally {
         this.loading = false;
-        this.closeDialog();
       }
     }
   }
@@ -465,6 +473,26 @@ export default {
 
 .text-success { color: #67c23a; }
 .text-danger { color: #f56c6c; }
+
+.dialog-message {
+  margin: 0 20px 15px;
+  padding: 10px;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.dialog-message.success {
+  background: #f0f9eb;
+  color: #67c23a;
+  border: 1px solid #c2e7b0;
+}
+
+.dialog-message.error {
+  background: #fef0f0;
+  color: #f56c6c;
+  border: 1px solid #fde2e2;
+}
 
 .dialog-footer {
   display: flex;
