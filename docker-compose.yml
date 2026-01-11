@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  db:
+    build: ./database
+    container_name: bookmanage-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-13Password,}
+      MYSQL_DATABASE: ${DB_NAME:-bookmanage}
+      TZ: Asia/Shanghai
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/schema:/docker-entrypoint-initdb.d/schema
+      - ./database/seeds:/docker-entrypoint-initdb.d/seeds
+    ports:
+      - "3307:3306"
+    networks:
+      - app-network
+
+  backend:
+    build: ./backend
+    container_name: bookmanage-backend
+    restart: always
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-13Password,}
+      DB_NAME: ${DB_NAME:-bookmanage}
+      PORT: 3000
+      SUPER_ADMIN_NAME: ${SUPER_ADMIN_NAME:-SuperAdmin}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-SuperAdmin123!}
+      SUPER_ADMIN_PHONE: ${SUPER_ADMIN_PHONE:-13800000000}
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+
+  frontend:
+    build: ./frontend
+    container_name: bookmanage-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - app-network
+
+volumes:
+  db_data:
+
+networks:
+  app-network:
+    driver: bridge
