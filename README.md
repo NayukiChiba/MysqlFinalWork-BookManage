@@ -21,152 +21,43 @@
 - **Express** - Web 应用框架
 - **MySQL** - 关系型数据库
 
-## 本地运行步骤
+## 快速启动
 
-### 环境要求
+本系统推荐使用 Docker Compose 进行快速部署。
 
-- Node.js 22.0+
-- MySQL 8.0+
-- npm 11.6+
-
-### 1. 数据库配置
-
-#### 安装 MySQL
-
-```bash
-# Ubuntu/Debian
-sudo apt update
-sudo apt install mysql-server
-```
-
-#### 启动 MySQL 服务
-
-```bash
-# Windows
-net start mysql
-
-# Ubuntu/Debian
-sudo systemctl start mysql
-```
-
-#### 配置环境变量
-
-创建 `.env` 文件：
-
-```
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=你的MySQL密码
-DB_NAME=bookmanage
-PORT=3000
-```
-
-#### 创建数据库
-
-```bash
--- 使用setup脚本
-cd database
-./setup.sh(或者./setup.bat)
-
--- (可选)插入基本数据
-cd seeds
-```
-
-```mysql
--- 登录mysql
-mysql -u root -p
-
--- 插入数据
-sources teachers.sql
-sources students.sql
-```
-
-### 2. 后端配置
-
-#### 进入后端目录
-
-```bash
-cd backend
-```
-
-#### 安装依赖
-
-```bash
-npm install
-```
-
-#### 启动后端服务
-
-```bash
-npm start
-```
-
-后端服务将在 `http://localhost:3000` 启动
-
-### 3. 前端配置
-
-#### 进入前端目录
-
-```bash
-cd frontend
-```
-
-#### 安装依赖
-
-```bash
-npm install
-```
-
-#### 配置 API 地址
-
-编辑 `frontend/src/utils/api.js` 文件，确保 `baseURL` 配置正确：
-
-```javascript
-const api = axios.create({
-  baseURL: "http://localhost:3000/api", // 确保与后端地址匹配
-  timeout: 10000,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-```
-
-#### 启动前端服务
-
-```bash
-npm run dev
-```
-
-前端服务将在 `http://localhost:5173` 启动
-
-### 4. 访问应用
-
-打开浏览器访问：`http://localhost:5173`
-
-## Docker 部署
-
-本系统支持使用 Docker Compose 快速部署，无需手动配置环境。
-
-### 前置要求
+### 1. 环境准备
 
 - Docker Engine
 - Docker Compose
 
-### 快速启动
+### 2. 配置文件
 
-1. 在项目根目录下运行以下命令构建并启动服务：
+在项目根目录创建 `.env` 文件，复制以下内容：
+
+```bash
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=root密码
+DB_NAME=bookmanage
+SUPER_ADMIN_NAME=超级管理员名字
+SUPER_ADMIN_PASSWORD=超级管理员密码
+SUPER_ADMIN_PHONE=超级管理员电话
+```
+
+### 3. 启动服务
+
+运行以下命令构建并启动所有服务：
 
 ```bash
 docker-compose up --build -d
 ```
 
-2. 等待容器启动完成。
-
-3. 访问应用：
+### 4. 访问应用
 
 - **前端页面**：http://localhost:80
 - **后端 API**：http://localhost:3000
-- **数据库**：localhost:3307 (用户: root, 密码: 13Password,)
+- **数据库**：localhost:3306
 
 ## 项目结构
 
@@ -223,109 +114,6 @@ BookManage/
 - **数据统计**：借阅量、罚款等数据统计
 - **自动计算**：逾期天数、罚款金额自动计算
 - **实时更新**：数据变更实时反映到界面
-
-## 测试账号
-
-### 管理员账号
-
-- 用户 ID: `admin`
-- 密码: `admin123`
-
-### 测试用户账号
-
-- 用户 ID: `S001`
-- 密码: `password123`
-
-## 常见问题
-
-### 1. 数据库连接失败
-
-**问题**：后端启动时显示数据库连接错误
-
-**解决方案**：
-
-```bash
-# 检查MySQL服务状态
-net start mysql  # Windows
-brew services start mysql  # macOS
-
-# 检查数据库配置
-# 确认根目录中.env 文件中的数据库配置正确
-
-# 重新创建数据库
-cd database
-./setup.sh
-```
-
-### 2. 前端无法连接后端
-
-**问题**：前端显示"连接失败"或 API 请求错误
-
-**解决方案**：
-
-```bash
-# 检查后端服务状态
-curl http://localhost:3000/api
-
-# 检查前端API配置
-# 确认 frontend/src/utils/api.js 中的 baseURL 正确
-
-# 检查CORS配置
-# 确认后端已配置允许跨域访问
-```
-
-### 3. 端口冲突
-
-**问题**：启动服务时提示端口被占用
-
-**解决方案**：
-
-```bash
-# 查找占用端口的进程
-netstat -ano | findstr :3000  # Windows
-lsof -i :3000  # macOS/Linux
-
-# 终止占用进程
-taskkill /PID <进程ID> /F  # Windows
-kill -9 <进程ID>  # macOS/Linux
-
-# 或者修改端口配置
-# 在 backend/.env 中修改 PORT
-# 在前端启动时 Vite 会自动分配可用端口
-```
-
-### 4. 依赖安装失败
-
-**问题**：npm install 时出现错误
-
-**解决方案**：
-
-```bash
-# 清除npm缓存
-npm cache clean --force
-
-# 删除依赖并重新安装
-rm -rf node_modules package-lock.json
-npm install
-```
-
-### 5. 前端页面空白
-
-**问题**：访问前端页面时显示空白
-
-**解决方案**：
-
-```bash
-# 检查浏览器控制台错误
-# 按F12打开开发者工具，查看Console标签
-
-# 重新启动前端服务
-cd frontend
-npm run dev
-
-# 检查路由配置
-# 确认 frontend/src/router/index.js 配置正确
-```
 
 ## 开发说明
 
