@@ -1,6 +1,10 @@
+SET NAMES utf8mb4;
+
 USE bookmanage;
+
 DROP PROCEDURE IF EXISTS borrowBook;
-DELIMITER //
+
+DELIMITER / /
 
 CREATE PROCEDURE IF NOT EXISTS borrowBook(
     IN p_borrower_id VARCHAR(50),
@@ -18,13 +22,14 @@ BEGIN
     DECLARE v_due_date DATE;
     DECLARE v_record_id VARCHAR(50);
     DECLARE v_max_borrow_days INT;
+    DECLARE v_already_borrowed INT DEFAULT 0;
     
     -- 声明异常处理
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
         SET p_result_code = -1;
-        SET p_result_message = 'System error: Failed to borrow book';
+        SET p_result_message = '系统错误：借书失败';
         SET p_record_id = '';
     END;
     
@@ -45,66 +50,79 @@ BEGIN
     
     IF v_borrowing_status IS NULL THEN
         SET p_result_code = 1;
-        SET p_result_message = 'User does not exist';
+        SET p_result_message = '用户不存在';
         ROLLBACK;
     ELSEIF v_borrowing_status = 'suspended' THEN
         SET p_result_code = 2;
-        SET p_result_message = 'User account has been suspended';
+        SET p_result_message = '账户已被冻结';
         ROLLBACK;
     ELSEIF v_borrowed_count >= v_max_borrow_count THEN
         SET p_result_code = 3;
-        SET p_result_message = 'Maximum borrowing limit reached';
+        SET p_result_message = '已达到最大借阅数量限制';
         ROLLBACK;
     ELSE
-        -- 检查图书库存
-        SELECT current_stock INTO v_current_stock 
-        FROM books 
-        WHERE book_id = p_book_id;
+        -- 检查用户是否已借了这本书且未归还
+        SELECT COUNT(*) INTO v_already_borrowed
+        FROM borrowing_records
+        WHERE borrower_id = p_borrower_id 
+          AND book_id = p_book_id 
+          AND return_status = 'borrowed';
         
-        IF v_current_stock IS NULL THEN
-            SET p_result_code = 4;
-            SET p_result_message = 'Book does not exist';
-            ROLLBACK;
-        ELSEIF v_current_stock <= 0 THEN
-            SET p_result_code = 5;
-            SET p_result_message = 'Insufficient book stock';
+        IF v_already_borrowed > 0 THEN
+            SET p_result_code = 6;
+            SET p_result_message = '您已借阅了这本书，请先归还后再借';
             ROLLBACK;
         ELSE
-            -- 生成借阅记录ID
-            SET v_record_id = CONCAT('BR', DATE_FORMAT(NOW(), '%Y%m%d%H%i%s'));
-            
-            -- 计算应还日期
-            SELECT max_borrow_days INTO v_max_borrow_days
-            FROM user_types ut
-            JOIN borrowers b ON ut.type_id = b.identity_type
-            WHERE b.uid = p_borrower_id;
-            
-            SET v_due_date = DATE_ADD(p_borrow_date, INTERVAL v_max_borrow_days DAY);
-
-            -- 插入借阅记录
-            INSERT INTO borrowing_records (
-                record_id, borrower_id, book_id, borrow_date, due_date, return_status
-            ) VALUES (
-                v_record_id, p_borrower_id, p_book_id, p_borrow_date, v_due_date, 'borrowed'
-            );
-            
-            -- 更新图书库存
-            UPDATE books 
-            SET current_stock = current_stock - 1 
+            -- 检查图书库存
+            SELECT current_stock INTO v_current_stock 
+            FROM books 
             WHERE book_id = p_book_id;
             
-            -- 更新用户借阅数量
-            UPDATE borrowers
-            SET borrowed_count = borrowed_count + 1
-            WHERE uid = p_borrower_id;
-            
-            -- 提交事务
-            COMMIT;
-            SET p_result_code = 0;
-            SET p_result_message = 'Book borrowed successfully';
-            SET p_record_id = v_record_id;
+            IF v_current_stock IS NULL THEN
+                SET p_result_code = 4;
+                SET p_result_message = '图书不存在';
+                ROLLBACK;
+            ELSEIF v_current_stock <= 0 THEN
+                SET p_result_code = 5;
+                SET p_result_message = '图书库存不足';
+                ROLLBACK;
+            ELSE
+                -- 生成借阅记录ID
+                SET v_record_id = CONCAT('BR', DATE_FORMAT(NOW(), '%Y%m%d%H%i%s'));
+                
+                -- 计算应还日期
+                SELECT max_borrow_days INTO v_max_borrow_days
+                FROM user_types ut
+                JOIN borrowers b ON ut.type_id = b.identity_type
+                WHERE b.uid = p_borrower_id;
+                
+                SET v_due_date = DATE_ADD(p_borrow_date, INTERVAL v_max_borrow_days DAY);
+
+                -- 插入借阅记录
+                INSERT INTO borrowing_records (
+                    record_id, borrower_id, book_id, borrow_date, due_date, return_status
+                ) VALUES (
+                    v_record_id, p_borrower_id, p_book_id, p_borrow_date, v_due_date, 'borrowed'
+                );
+                
+                -- 更新图书库存
+                UPDATE books 
+                SET current_stock = current_stock - 1 
+                WHERE book_id = p_book_id;
+                
+                -- 更新用户借阅数量
+                UPDATE borrowers
+                SET borrowed_count = borrowed_count + 1
+                WHERE uid = p_borrower_id;
+                
+                -- 提交事务
+                COMMIT;
+                SET p_result_code = 0;
+                SET p_result_message = '借书成功';
+                SET p_record_id = v_record_id;
+            END IF;
         END IF;
     END IF;
 END//
 
-DELIMITER ;
+DELIMITER;
