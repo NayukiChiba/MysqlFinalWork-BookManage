@@ -81,6 +81,12 @@ export const userAPI = {
 
   // 获取用户罚款记录
   getFineRecords: () => api.get("/user/fine-records"),
+
+  // 缴纳单个罚款
+  payFine: (fineId) => api.post("/user/fine-records/pay", { fine_id: fineId }),
+
+  // 缴纳所有罚款
+  payAllFines: () => api.post("/user/fine-records/pay-all"),
 };
 
 // 图书相关API

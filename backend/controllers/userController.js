@@ -316,6 +316,75 @@ const getUserFineRecordsFromToken = async (req, res) => {
     }
 };
 
+// 缴纳单个罚款
+const payFine = async (req, res) => {
+    try {
+        const userId = getUserIdFromToken(req);
+        if (!userId) {
+            return res.status(401).json({ success: false, error: '请先登录' });
+        }
+        
+        const { fine_id } = req.body;
+        if (!fine_id) {
+            return res.status(400).json({ success: false, error: '请提供罚款ID' });
+        }
+        
+        const connection = await getConnection();
+        
+        // 检查罚款记录是否属于当前用户
+        const [fineCheck] = await connection.execute(
+            'SELECT * FROM fine_records WHERE fine_id = ? AND borrower_id = ?',
+            [fine_id, userId]
+        );
+        
+        if (fineCheck.length === 0) {
+            return res.status(404).json({ success: false, error: '罚款记录不存在' });
+        }
+        
+        if (fineCheck[0].payment_status === 'paid') {
+            return res.status(400).json({ success: false, error: '该罚款已缴纳' });
+        }
+        
+        // 更新罚款状态为已缴纳
+        await connection.execute(
+            'UPDATE fine_records SET payment_status = ? WHERE fine_id = ?',
+            ['paid', fine_id]
+        );
+        
+        res.json({ success: true, message: '罚款缴纳成功' });
+    } catch (error) {
+        console.error('Failed to pay fine:', error);
+        res.status(500).json({ success: false, error: '缴纳罚款失败' });
+    }
+};
+
+// 缴纳所有未缴纳罚款
+const payAllFines = async (req, res) => {
+    try {
+        const userId = getUserIdFromToken(req);
+        if (!userId) {
+            return res.status(401).json({ success: false, error: '请先登录' });
+        }
+        
+        const connection = await getConnection();
+        
+        // 更新所有未缴纳的罚款记录
+        const [result] = await connection.execute(
+            'UPDATE fine_records SET payment_status = ? WHERE borrower_id = ? AND payment_status = ?',
+            ['paid', userId, 'unpaid']
+        );
+        
+        if (result.affectedRows === 0) {
+            return res.status(400).json({ success: false, error: '没有需要缴纳的罚款' });
+        }
+        
+        res.json({ success: true, message: `成功缴纳 ${result.affectedRows} 条罚款` });
+    } catch (error) {
+        console.error('Failed to pay all fines:', error);
+        res.status(500).json({ success: false, error: '缴纳罚款失败' });
+    }
+};
+
 module.exports = {
     register,
     login,
@@ -326,5 +395,7 @@ module.exports = {
     getUserInfo,
     getCurrentBorrowingRecords,
     getAllUserBorrowingRecords,
-    getUserFineRecordsFromToken
+    getUserFineRecordsFromToken,
+    payFine,
+    payAllFines
 };

@@ -33,8 +33,8 @@
     
     <div class="total-fine" v-if="totalUnpaidFine > 0">
       <p>待缴罚款总额: ¥{{ totalUnpaidFine }}</p>
-      <button @click="payAllFines" :disabled="paying" class="pay-button">
-        {{ paying ? '缴费中...' : '缴纳所有罚款' }}
+      <button @click="openPayDialog" class="pay-button">
+        缴纳所有罚款
       </button>
     </div>
     
@@ -45,21 +45,34 @@
     <div v-if="success" class="success-message">
       {{ success }}
     </div>
+    
+    <!-- 使用 PaymentDialog 组件 -->
+    <PaymentDialog 
+      :visible.sync="showPayDialog"
+      :amount="totalUnpaidFine"
+      :payAll="true"
+      @paid="handlePaid"
+      @close="showPayDialog = false"
+    />
   </div>
 </template>
 
 <script>
 import { userAPI } from '../utils/api';
+import PaymentDialog from '../components/PaymentDialog.vue';
 
 export default {
   name: 'FineRecords',
+  components: {
+    PaymentDialog
+  },
   data() {
     return {
       fineRecords: [],
       loading: false,
-      paying: false,
       error: '',
-      success: ''
+      success: '',
+      showPayDialog: false
     };
   },
   computed: {
@@ -93,31 +106,22 @@ export default {
       }
     },
     
-    async payAllFines() {
-      this.error = '';
-      this.success = '';
-      this.paying = true;
-      
-      try {
-        // 这里应该调用实际的支付API，但为了简化，我们只更新状态
-        // 在实际应用中，这里会集成支付系统
-        
-        // 模拟支付成功
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // 更新所有未支付的罚款记录为已支付
-        this.fineRecords.forEach(record => {
-          if (record.payment_status === 'unpaid') {
-            record.payment_status = 'paid';
-          }
-        });
-        
-        this.success = '所有罚款缴纳成功！';
-      } catch (err) {
-        this.error = '缴纳罚款过程中发生错误';
-      } finally {
-        this.paying = false;
-      }
+    openPayDialog() {
+      this.showPayDialog = true;
+    },
+    
+    handlePaid() {
+      // 更新所有未支付的罚款记录为已支付（本地更新）
+      this.fineRecords.forEach(record => {
+        if (record.payment_status === 'unpaid') {
+          record.payment_status = 'paid';
+        }
+      });
+      this.success = '所有罚款缴纳成功！';
+      // 3秒后清除消息
+      setTimeout(() => {
+        this.success = '';
+      }, 3000);
     },
     
     formatDate(dateString) {
@@ -231,8 +235,8 @@ export default {
 }
 
 .status-paid {
-  background-color: #f0f9ff;
-  color: #409eff;
+  background-color: #f0f9eb;
+  color: #67c23a;
 }
 
 .status-unpaid {
@@ -300,9 +304,9 @@ export default {
 .success-message {
   margin-top: 15px;
   padding: 10px;
-  background-color: #f0f9ff;
-  color: #409eff;
-  border: 1px solid #d0e9ff;
+  background-color: #f0f9eb;
+  color: #67c23a;
+  border: 1px solid #c2e7b0;
   border-radius: 4px;
   text-align: center;
 }

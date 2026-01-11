@@ -18,6 +18,12 @@ router.get('/borrowing-records/all', userController.getAllUserBorrowingRecords);
 // 获取用户罚款记录（从token中获取）
 router.get('/fine-records', userController.getUserFineRecordsFromToken);
 
+// 缴纳单个罚款
+router.post('/fine-records/pay', userController.payFine);
+
+// 缴纳所有罚款
+router.post('/fine-records/pay-all', userController.payAllFines);
+
 // 获取用户信息（通过ID）
 router.get('/:id', userController.getUserById);
 

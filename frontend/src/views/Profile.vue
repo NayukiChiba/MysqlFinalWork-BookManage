@@ -132,17 +132,28 @@
     <div v-if="successMessage" class="success-message">
       {{ successMessage }}
     </div>
+    
+    <!-- 使用 PaymentDialog 组件 -->
+    <PaymentDialog 
+      :visible.sync="showPayDialog"
+      :amount="selectedFine ? selectedFine.fine_amount : '0'"
+      :fineId="selectedFine ? selectedFine.fine_id : null"
+      @paid="handlePaid"
+      @close="closePayDialog"
+    />
   </div>
 </template>
 
 <script>
 import { userAPI } from '../utils/api';
 import BorrowingCard from '../components/BorrowingCard.vue';
+import PaymentDialog from '../components/PaymentDialog.vue';
 
 export default {
   name: 'Profile',
   components: {
-    BorrowingCard
+    BorrowingCard,
+    PaymentDialog
   },
   data() {
     return {
@@ -151,7 +162,9 @@ export default {
       allBorrowings: [],
       fineRecords: [],
       loading: false,
-      successMessage: ''
+      successMessage: '',
+      showPayDialog: false,
+      selectedFine: null
     };
   },
   mounted() {
@@ -211,17 +224,30 @@ export default {
       }, 3000);
     },
 
-    async handlePayFine(fineId) {
-      try {
-        // 这里应该调用缴纳罚款的API
-        // 由于API中可能没有这个功能，我们先模拟一下
-        alert(`缴纳罚款 ${fineId} 的功能正在开发中`);
-        
-        // 模拟缴纳成功后重新加载数据
-        this.loadFineRecords();
-      } catch (err) {
-        alert('缴纳罚款过程中发生错误');
+    handlePayFine(fineId) {
+      // 找到要支付的罚款记录
+      this.selectedFine = this.fineRecords.find(f => f.fine_id === fineId);
+      this.showPayDialog = true;
+    },
+    
+    closePayDialog() {
+      this.showPayDialog = false;
+      this.selectedFine = null;
+    },
+    
+    handlePaid(fineId) {
+      // 更新本地状态为已缴纳
+      if (this.selectedFine) {
+        this.selectedFine.payment_status = 'paid';
       }
+      
+      this.successMessage = '罚款缴纳成功！';
+      this.closePayDialog();
+      
+      // 3秒后清除消息
+      setTimeout(() => {
+        this.successMessage = '';
+      }, 3000);
     },
 
     getIdentityTypeText(type) {
@@ -498,5 +524,121 @@ th {
   th, td {
     padding: 8px;
   }
+}
+
+/* 对话框样式 */
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.confirm-dialog {
+  background: white;
+  border-radius: 12px;
+  width: 400px;
+  max-width: 90%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.dialog-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.dialog-body {
+  padding: 20px;
+}
+
+.pay-info {
+  text-align: center;
+}
+
+.pay-notice {
+  font-size: 16px;
+  color: #e6a23c;
+  margin-bottom: 15px;
+}
+
+.pay-amount {
+  font-size: 20px;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.pay-amount strong {
+  color: #f56c6c;
+}
+
+.pay-desc {
+  font-size: 14px;
+  color: #999;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid #eee;
+}
+
+.btn-cancel, .btn-confirm {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-cancel {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.btn-cancel:hover {
+  background: #e8e8e8;
+}
+
+.btn-confirm {
+  background: #67c23a;
+  color: white;
+}
+
+.btn-confirm:hover:not(:disabled) {
+  background: #85ce61;
+}
+
+.btn-confirm:disabled {
+  background: #b3e19d;
+  cursor: not-allowed;
 }
 </style>
