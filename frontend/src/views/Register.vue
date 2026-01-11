@@ -38,7 +38,7 @@
           <select id="identityType" v-model="registerForm.identityType" required>
             <option value="1">学生</option>
             <option value="2">教师</option>
-            <option value="3">管理员</option>
+            <option value="3">校外人员</option>
           </select>
         </div>
         <div class="form-group" v-if="registerForm.identityType == 1">
@@ -148,15 +148,16 @@ export default {
         
         if (response.success) {
           this.success = '注册成功！即将跳转到登录页面...';
-          // 3秒后跳转到登录页面
+          // 1.5秒后跳转到登录页面
           setTimeout(() => {
             this.$router.push('/login');
-          }, 3000);
+          }, 1500);
         } else {
           this.error = response.message || '注册失败';
         }
       } catch (err) {
-        this.error = err.response?.data?.message || '注册过程中发生错误';
+        // 直接显示后端返回的详细错误信息
+        this.error = err.response?.data?.error || err.response?.data?.message || '注册过程中发生错误';
       } finally {
         this.loading = false;
       }
@@ -263,9 +264,9 @@ export default {
 .success-message {
   margin-top: 15px;
   padding: 10px;
-  background-color: #f0f9ff;
-  color: #409eff;
-  border: 1px solid #d0e9ff;
+  background-color: #f0f9eb;
+  color: #67c23a;
+  border: 1px solid #c2e7b0;
   border-radius: 4px;
   text-align: center;
 }
