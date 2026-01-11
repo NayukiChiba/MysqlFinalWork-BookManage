@@ -1,10 +1,14 @@
+SET NAMES utf8mb4;
+
 USE bookmanage;
+
 DROP TABLE IF EXISTS user_auth;
+
 CREATE TABLE IF NOT EXISTS user_auth (
     user_id VARCHAR(50) PRIMARY KEY,
     password_hash VARCHAR(255) NOT NULL,
     is_admin TINYINT(1) DEFAULT 0 COMMENT '是否为管理员，0-普通用户，1-管理员',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    FOREIGN KEY (user_id) REFERENCES borrowers(uid) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES borrowers (uid) ON DELETE CASCADE
 ) COMMENT '用户认证表，存储用户登录凭证';
