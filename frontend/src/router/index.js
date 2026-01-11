@@ -7,7 +7,7 @@ import BookSearch from '../views/BookSearch.vue'
 import BorrowingRecords from '../views/BorrowingRecords.vue'
 import FineRecords from '../views/FineRecords.vue'
 import AdminPanel from '../views/AdminPanel.vue'
-import ApiTest from '../views/ApiTest.vue'
+
 
 const routes = [
   {
@@ -50,11 +50,7 @@ const routes = [
     name: 'AdminPanel',
     component: AdminPanel
   },
-  {
-    path: '/api-test',
-    name: 'ApiTest',
-    component: ApiTest
-  }
+
 ]
 
 const router = createRouter({
