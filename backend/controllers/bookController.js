@@ -4,20 +4,14 @@ const { getConnection } = require('../config/database');
 const getAllBooks = async (req, res) => {
     try {
         const connection = await getConnection();
-        // Call stored procedure to get all books
-        await connection.execute('CALL getAllBooks(@result_code, @result_message)');
-        const [result] = await connection.execute('SELECT @result_code as result_code, @result_message as result_message');
         
-        if (result[0].result_code !== 0) {
-            return res.status(500).json({ error: result[0].result_message });
-        }
+        // 调用存储过程获取所有书籍
+        const [rows] = await connection.execute('CALL getAllBooks()');
         
-        // Get actual query results
-        const [rows] = await connection.execute('SELECT * FROM books');
-        res.json(rows);
+        res.json({ success: true, data: rows[0] || [] });
     } catch (error) {
         console.error('Failed to get book list:', error);
-        res.status(500).json({ error: 'Failed to get book list' });
+        res.status(500).json({ success: false, error: 'Failed to get book list' });
     }
 };
 
