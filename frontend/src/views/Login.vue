@@ -68,10 +68,11 @@ export default {
           // 跳转到首页
           this.$router.push('/');
         } else {
-          this.error = response.message || '登录失败';
+          // 处理登录失败（包括401错误返回的响应）
+          this.error = response.message || response.error || '登录失败，请检查用户名和密码';
         }
       } catch (err) {
-        this.error = err.response?.data?.message || '登录过程中发生错误';
+        this.error = err.response?.data?.message || err.response?.data?.error || '登录过程中发生错误';
       } finally {
         this.loading = false;
       }
