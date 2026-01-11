@@ -126,28 +126,43 @@ const searchBooks = async (req, res) => {
         const { query } = req.params;
         const connection = await getConnection();
         
-        // Call stored procedure to search books
-        await connection.execute('CALL searchBooks(?, @result_code, @result_message)', [query]);
-        const [result] = await connection.execute('SELECT @result_code as result_code, @result_message as result_message');
+        // 直接调用存储过程搜索
+        const [rows] = await connection.execute('CALL searchBooks(?)', [query]);
         
-        if (result[0].result_code !== 0) {
-            return res.status(500).json({ success: false, error: result[0].result_message });
-        }
-        
-        // Get actual query results
-        const [rows] = await connection.execute(`
-            SELECT DISTINCT b.*, p.publisher_name
-            FROM books b
-            LEFT JOIN publishers p ON b.publisher_id = p.publisher_id
-            LEFT JOIN book_authors ba ON b.book_id = ba.book_id
-            LEFT JOIN authors a ON ba.author_id = a.author_id
-            WHERE b.title LIKE ? OR b.isbn LIKE ? OR a.author_name LIKE ?
-        `, [`%${query}%`, `%${query}%`, `%${query}%`]);
-        
-        res.json({ success: true, data: rows });
+        res.json({ success: true, data: rows[0] || [] });
     } catch (error) {
         console.error('Failed to search books:', error);
         res.status(500).json({ success: false, error: 'Failed to search books' });
+    }
+};
+
+// Search books by tag
+const searchByTag = async (req, res) => {
+    try {
+        const { query } = req.params;
+        const connection = await getConnection();
+        
+        const [rows] = await connection.execute('CALL searchBooksByTag(?)', [query]);
+        
+        res.json({ success: true, data: rows[0] || [] });
+    } catch (error) {
+        console.error('Failed to search books by tag:', error);
+        res.status(500).json({ success: false, error: 'Failed to search books by tag' });
+    }
+};
+
+// Search books by publisher
+const searchByPublisher = async (req, res) => {
+    try {
+        const { query } = req.params;
+        const connection = await getConnection();
+        
+        const [rows] = await connection.execute('CALL searchBooksByPublisher(?)', [query]);
+        
+        res.json({ success: true, data: rows[0] || [] });
+    } catch (error) {
+        console.error('Failed to search books by publisher:', error);
+        res.status(500).json({ success: false, error: 'Failed to search books by publisher' });
     }
 };
 
@@ -157,5 +172,7 @@ module.exports = {
     addBook,
     updateBook,
     deleteBook,
-    searchBooks
+    searchBooks,
+    searchByTag,
+    searchByPublisher
 };

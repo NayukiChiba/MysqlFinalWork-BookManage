@@ -14,8 +14,8 @@ router.post('/return', borrowController.returnBook);
 router.get('/search/:query', bookController.searchBooks);
 router.get('/search/name/:query', bookController.searchBooks);
 router.get('/search/author/:query', bookController.searchBooks);
-router.get('/search/tag/:query', bookController.searchBooks);
-router.get('/search/publisher/:query', bookController.searchBooks);
+router.get('/search/tag/:query', bookController.searchByTag);
+router.get('/search/publisher/:query', bookController.searchByPublisher);
 router.get('/search/isbn/:query', bookController.searchBooks);
 
 // 根据ID获取图书
