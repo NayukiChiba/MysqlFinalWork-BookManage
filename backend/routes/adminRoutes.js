@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
 
+// 获取所有用户
+router.get('/users', adminController.getAllUsers);
+
 // 获取所有借阅记录
 router.get('/borrowing-records', adminController.getAllBorrowingRecords);
 

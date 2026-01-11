@@ -1,18 +1,29 @@
 const { getConnection } = require('../config/database');
 
+// 获取所有用户
+const getAllUsers = async (req, res) => {
+    try {
+        const connection = await getConnection();
+        const [rows] = await connection.execute(`
+            SELECT b.uid, b.name, b.phone, b.identity_type, b.student_id, 
+                   b.employee_id, b.registration_date, b.borrowing_status, b.borrowed_count,
+                   ut.type_name, ua.is_admin
+            FROM borrowers b
+            LEFT JOIN user_types ut ON b.identity_type = ut.type_id
+            LEFT JOIN user_auth ua ON b.uid = ua.user_id
+            ORDER BY b.registration_date DESC
+        `);
+        res.json({ success: true, data: rows });
+    } catch (error) {
+        console.error('Failed to get users:', error);
+        res.status(500).json({ success: false, error: 'Failed to get users' });
+    }
+};
+
 // 获取所有借阅记录
 const getAllBorrowingRecords = async (req, res) => {
     try {
         const connection = await getConnection();
-        // 调用存储过程获取所有借阅记录
-        await connection.execute('CALL getAllBorrowingRecordsDetailed(@result_code, @result_message)');
-        const [result] = await connection.execute('SELECT @result_code as result_code, @result_message as result_message');
-        
-        if (result[0].result_code !== 0) {
-            return res.status(500).json({ error: result[0].result_message });
-        }
-        
-        // 获取实际查询结果
         const [rows] = await connection.execute(`
             SELECT br.*, b.title as book_title, bo.name as borrower_name, bo.identity_type
             FROM borrowing_records br
@@ -20,10 +31,10 @@ const getAllBorrowingRecords = async (req, res) => {
             JOIN borrowers bo ON br.borrower_id = bo.uid
             ORDER BY br.borrow_date DESC
         `);
-        res.json(rows);
+        res.json({ success: true, data: rows });
     } catch (error) {
         console.error('Failed to get borrowing records:', error);
-        res.status(500).json({ error: 'Failed to get borrowing records' });
+        res.status(500).json({ success: false, error: 'Failed to get borrowing records' });
     }
 };
 
@@ -31,15 +42,6 @@ const getAllBorrowingRecords = async (req, res) => {
 const getAllFineRecords = async (req, res) => {
     try {
         const connection = await getConnection();
-        // 调用存储过程获取所有罚款记录
-        await connection.execute('CALL getAllFineRecordsDetailed(@result_code, @result_message)');
-        const [result] = await connection.execute('SELECT @result_code as result_code, @result_message as result_message');
-        
-        if (result[0].result_code !== 0) {
-            return res.status(500).json({ error: result[0].result_message });
-        }
-        
-        // 获取实际查询结果
         const [rows] = await connection.execute(`
             SELECT fr.*, b.title as book_title, bo.name as borrower_name, bo.identity_type
             FROM fine_records fr
@@ -47,38 +49,27 @@ const getAllFineRecords = async (req, res) => {
             JOIN borrowers bo ON fr.borrower_id = bo.uid
             ORDER BY fr.borrow_date DESC
         `);
-        res.json(rows);
+        res.json({ success: true, data: rows });
     } catch (error) {
         console.error('Failed to get fine records:', error);
-        res.status(500).json({ error: 'Failed to get fine records' });
+        res.status(500).json({ success: false, error: 'Failed to get fine records' });
     }
 };
 
 // 获取用户登录日志
 const getUserLoginLogs = async (req, res) => {
     try {
-        // Get admin ID from request query parameters or body
-        const admin_id = req.query.admin_id || (req.body && req.body.admin_id) || null;
         const connection = await getConnection();
-        // 调用存储过程获取用户登录日志
-        await connection.execute('CALL getUserLoginLogs(?, @result_code, @result_message)', [admin_id]);
-        const [result] = await connection.execute('SELECT @result_code as result_code, @result_message as result_message');
-        
-        if (result[0].result_code !== 0) {
-            return res.status(500).json({ error: result[0].result_message });
-        }
-        
-        // 获取实际查询结果
         const [rows] = await connection.execute(`
             SELECT ll.*, bo.name as user_name, bo.identity_type
             FROM login_logs ll
             JOIN borrowers bo ON ll.user_id = bo.uid
             ORDER BY ll.login_time DESC
         `);
-        res.json(rows);
+        res.json({ success: true, data: rows });
     } catch (error) {
         console.error('Failed to get login logs:', error);
-        res.status(500).json({ error: 'Failed to get login logs' });
+        res.status(500).json({ success: false, error: 'Failed to get login logs' });
     }
 };
 
@@ -94,7 +85,7 @@ const manageUser = async (req, res) => {
                     'UPDATE borrowers SET borrowing_status = "active" WHERE uid = ?',
                     [uid]
                 );
-                res.json({ message: 'User activated' });
+                res.json({ success: true, message: 'User activated' });
                 break;
                 
             case 'suspend':
@@ -102,7 +93,7 @@ const manageUser = async (req, res) => {
                     'UPDATE borrowers SET borrowing_status = "suspended" WHERE uid = ?',
                     [uid]
                 );
-                res.json({ message: 'User suspended' });
+                res.json({ success: true, message: 'User suspended' });
                 break;
                 
             case 'delete':
@@ -178,6 +169,7 @@ const manageAdmin = async (req, res) => {
 };
 
 module.exports = {
+    getAllUsers,
     getAllBorrowingRecords,
     getAllFineRecords,
     getUserLoginLogs,
