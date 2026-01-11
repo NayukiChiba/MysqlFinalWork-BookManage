@@ -67,6 +67,20 @@
               >
                 {{ user.borrowing_status === 'active' ? '冻结账户' : '激活账户' }}
               </button>
+              <button 
+                v-if="isSuperAdmin && user.identity_type < 3"
+                @click="manageAdmin(user.uid, 'promote')"
+                class="admin-button promote-button"
+              >
+                提升为管理员
+              </button>
+              <button 
+                v-if="isSuperAdmin && user.identity_type >= 3 && user.identity_type < 5"
+                @click="manageAdmin(user.uid, 'demote')"
+                class="admin-button demote-button"
+              >
+                取消管理员
+              </button>
             </div>
           </div>
         </div>
@@ -186,6 +200,17 @@ export default {
       success: ''
     };
   },
+  computed: {
+    // 检查当前用户是否是超级管理员
+    isSuperAdmin() {
+      const userInfo = localStorage.getItem('userInfo');
+      if (userInfo) {
+        const user = JSON.parse(userInfo);
+        return user.identity_type >= 5;
+      }
+      return false;
+    }
+  },
   mounted() {
     this.loadTabData();
   },
@@ -285,11 +310,38 @@ export default {
           this.success = action === 'suspend' ? '用户账户已冻结' : '用户账户已激活';
           // 重新加载用户数据
           await this.loadUsers();
+          // 3秒后清除消息
+          setTimeout(() => {
+            this.success = '';
+          }, 3000);
         } else {
           this.error = response.message || '操作失败';
         }
       } catch (err) {
         this.error = '操作过程中发生错误';
+      }
+    },
+    
+    async manageAdmin(userId, action) {
+      this.error = '';
+      this.success = '';
+      
+      try {
+        const response = await adminAPI.manageAdmin(userId, action);
+        
+        if (response.success) {
+          this.success = action === 'promote' ? '已提升为管理员' : '已取消管理员权限';
+          // 重新加载用户数据
+          await this.loadUsers();
+          // 3秒后清除消息
+          setTimeout(() => {
+            this.success = '';
+          }, 3000);
+        } else {
+          this.error = response.error || response.message || '操作失败';
+        }
+      } catch (err) {
+        this.error = err.response?.data?.error || '操作过程中发生错误';
       }
     },
     
@@ -536,17 +588,24 @@ export default {
 
 .user-actions {
   margin-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.suspend-button {
+.suspend-button, .activate-button, .admin-button {
   padding: 8px 16px;
-  background-color: #f56c6c;
   color: white;
   border: none;
   border-radius: 4px;
   font-size: 14px;
   cursor: pointer;
   transition: background-color 0.3s;
+  white-space: nowrap;
+}
+
+.suspend-button {
+  background-color: #f56c6c;
 }
 
 .suspend-button:hover {
@@ -554,18 +613,27 @@ export default {
 }
 
 .activate-button {
-  padding: 8px 16px;
   background-color: #67c23a;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.3s;
 }
 
 .activate-button:hover {
   background-color: #85ce61;
+}
+
+.promote-button {
+  background-color: #e6a23c;
+}
+
+.promote-button:hover {
+  background-color: #ebb563;
+}
+
+.demote-button {
+  background-color: #909399;
+}
+
+.demote-button:hover {
+  background-color: #a6a9ad;
 }
 
 .status-active {

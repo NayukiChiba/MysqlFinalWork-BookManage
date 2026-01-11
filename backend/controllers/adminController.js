@@ -1,4 +1,19 @@
 const { getConnection } = require('../config/database');
+const jwt = require('jsonwebtoken');
+
+// 从请求头获取用户信息
+const getUserFromToken = (req) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (token) {
+        try {
+            return jwt.verify(token, process.env.JWT_SECRET || 'default_secret_key');
+        } catch (e) {
+            return null;
+        }
+    }
+    return null;
+};
 
 // 获取所有用户
 const getAllUsers = async (req, res) => {
@@ -159,12 +174,89 @@ const manageUser = async (req, res) => {
 // 管理管理员
 const manageAdmin = async (req, res) => {
     try {
-        // 这里可以添加管理员管理功能
-        // 例如：添加管理员、删除管理员、修改管理员权限等
-        res.status(500).json({ error: 'Admin management feature not implemented' });
+        // 验证当前操作者是否为超级管理员
+        const currentUser = getUserFromToken(req);
+        if (!currentUser) {
+            return res.status(401).json({ success: false, error: '请先登录' });
+        }
+        
+        // 检查操作者的权限
+        if (currentUser.identity_type < 5) {
+            return res.status(403).json({ success: false, error: '只有超级管理员可以管理管理员权限' });
+        }
+        
+        const { uid, action } = req.body; // action: 'promote', 'demote'
+        const connection = await getConnection();
+        
+        // 检查目标用户是否存在
+        const [userCheck] = await connection.execute(
+            'SELECT identity_type FROM borrowers WHERE uid = ?',
+            [uid]
+        );
+        
+        if (userCheck.length === 0) {
+            return res.status(404).json({ success: false, error: '用户不存在' });
+        }
+        
+        const currentType = userCheck[0].identity_type;
+        
+        switch (action) {
+            case 'promote':
+                // 提升为管理员 (identity_type = 4)
+                if (currentType >= 3) {
+                    return res.status(400).json({ success: false, error: '该用户已经是管理员' });
+                }
+                // 更新 borrowers 表的 identity_type
+                await connection.execute(
+                    'UPDATE borrowers SET identity_type = 4 WHERE uid = ?',
+                    [uid]
+                );
+                // 更新 user_auth 表的 is_admin
+                await connection.execute(
+                    'UPDATE user_auth SET is_admin = 1 WHERE user_id = ?',
+                    [uid]
+                );
+                res.json({ success: true, message: '已提升为管理员' });
+                break;
+                
+            case 'demote':
+                // 取消管理员权限，根据用户信息恢复原始身份
+                if (currentType < 3) {
+                    return res.status(400).json({ success: false, error: '该用户不是管理员' });
+                }
+                if (currentType >= 5) {
+                    return res.status(400).json({ success: false, error: '无法取消超级管理员权限' });
+                }
+                
+                // 查询用户的student_id和employee_id来判断原始身份
+                const [userInfo] = await connection.execute(
+                    'SELECT student_id, employee_id FROM borrowers WHERE uid = ?',
+                    [uid]
+                );
+                
+                // 根据是否有employee_id判断是教师还是学生
+                // 教师 = 2, 学生 = 1
+                const originalType = userInfo[0].employee_id ? 2 : 1;
+                
+                // 更新 borrowers 表的 identity_type
+                await connection.execute(
+                    'UPDATE borrowers SET identity_type = ? WHERE uid = ?',
+                    [originalType, uid]
+                );
+                // 更新 user_auth 表的 is_admin
+                await connection.execute(
+                    'UPDATE user_auth SET is_admin = 0 WHERE user_id = ?',
+                    [uid]
+                );
+                res.json({ success: true, message: `已取消管理员权限，恢复为${originalType === 2 ? '教师' : '学生'}` });
+                break;
+                
+            default:
+                res.status(400).json({ success: false, error: '无效的操作' });
+        }
     } catch (error) {
         console.error('Failed to manage admin:', error);
-        res.status(500).json({ error: 'Failed to manage admin' });
+        res.status(500).json({ success: false, error: '管理员操作失败' });
     }
 };
 
