@@ -38,10 +38,10 @@ const register = async (req, res) => {
         console.log('Registration result:', result[0]);
         
         if (result[0].result_code !== 0) {
-            return res.status(400).json({ error: result[0].result_message });
+            return res.status(400).json({ success: false, error: result[0].result_message });
         }
         
-        res.status(201).json({ message: result[0].result_message });
+        res.status(201).json({ success: true, message: result[0].result_message });
     } catch (error) {
         console.error('User registration failed:', error);
         res.status(500).json({ error: 'User registration failed' });
